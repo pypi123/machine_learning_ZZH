@@ -5,8 +5,6 @@ with open('D:\\Desktop\西瓜数据集3.0.csv') as data_file:
 feature = df.columns[:-1]
 # print(feature)
 
-
-
 def calShannonEnt(df):
     """
 计算当前节点的信息熵
@@ -28,6 +26,7 @@ def chose_feature(df):
     Gain = 0.0
     feature_chosed = features[0]
     T_num = len(df) - 1
+    T_dic = {}
     for feature in features:
         if df[feature].dtype == 'object':
             group_by_feature = df.groupby(feature)
@@ -36,11 +35,16 @@ def chose_feature(df):
                 Ent = calShannonEnt(group)
                 Ent_sum += (len(group)/len(df))*Ent
             Gain_feature = baseEnt - Ent_sum
+            # print('当前属性：', feature)
+            # print('当前属性的增益：', Gain_feature)
         else:
-            df = df.sort_values(by=feature, axis=0, ascending=True).reindex()
+            # 对于连续型属性，先将df进行排序
+            df = df.sort_values(by=feature, axis=0, ascending=True).reset_index(drop=True)
             Gain_feature = 0.0
-            T = 0.0  # T是分割值
-            feature_values = []
+            T_dic[feature] = 0.0  # 用字典型来存储多个连续属性的最优分割值，避免分割值永远是最后一列
+                                  # 连续属性的分割值
+            # T = 0.0  # T是分割值
+            feature_values = []  # 对于连续型的属性，将属性值记录到列表里
             for value in df[feature]:
                 feature_values.append(value)
             for i in range(T_num):
@@ -53,16 +57,23 @@ def chose_feature(df):
                 p_big = len(group_big)/len(df)
                 Ent_sum = p_small*Ent_small + p_big*Ent_big
                 Gain_temp = baseEnt - Ent_sum
+                # print('第{}次分割'.format(i+1))
+                # print('当前分割值：', T_temp)
                 if Gain_temp > Gain_feature:
+                    # print('T{}->{}'.format(T_dic[feature], T_temp))
+                    # print('Gain{}->{}'.format(Gain,Gain_temp))
                     Gain_feature = Gain_temp
-                    T = T_temp
+                    T_dic[feature] = T_temp  # 对于两列的连续值。T永远是最后一列连续值的值，所以出错,
+                                             # 改进用字典来存储
+
         if Gain_feature > Gain:
             Gain = Gain_feature
             feature_chosed = feature
 
     if df[feature_chosed].dtype == object:
         T = None
-
+    else:
+        T = T_dic[feature_chosed]
     return feature_chosed, T
 
 class Node(object):
@@ -105,6 +116,7 @@ def TreeGenerate(df):
 决策树生成的框架
     :param df:DataFrame数据
     """
+    print(df)
     new_node = Node(None, None, {})
     label_counts = {}
     for label in df[df.columns[-1]]:
@@ -112,9 +124,8 @@ def TreeGenerate(df):
             label_counts[label] = 1
         else:
             label_counts[label] += 1
-    new_node.label = max(label_counts, key=label_counts.get)
-    print(new_node.label)
-    if len(label_counts) == 1 or len(df) == 0 or len(df.columns)-1 == 0:
+    print('当前处理数据的标签统计： ', label_counts)
+    if len(label_counts) == 1:   # or len(df) == 0 or len(df.columns)-1 == 0:
     # groups = df.groupby(df[df.columns[-1]])
     # label_num = 0  # 将此节点中属于某类的样本数量初始化为0
     # if len(groups) > 1:
@@ -124,15 +135,22 @@ def TreeGenerate(df):
     #             new_node.label = label
     # else:
     #     new_node.label = df[df.columns[-1]][0]
+        new_node.label = df.loc[0,df.columns[-1]]
+        print('当前节点的标签是：', new_node.label)
         return new_node
+    else:
+        new_node.label = max(label_counts, key=label_counts.get)
+        print('当前节点的标签是：', new_node.label)
     new_node.attr, div_value = chose_feature(df)
+    print('当前节点的属性是： ', new_node.attr)
     if div_value == None:
         group_by_attr = df.groupby(new_node.attr)
         for value, group in group_by_attr:
-            new_node.attr_down[value] = TreeGenerate(group.drop(columns=new_node.attr))
+            new_node.attr_down[value] = TreeGenerate(group.drop(columns=new_node.attr).reset_index(drop=True))
     else:
-        new_node.attr_down['<={}?'.format(div_value)] = TreeGenerate(df[df[new_node.attr] <= div_value])
-        new_node.attr_down['>{}?'.format(div_value)] = TreeGenerate(df[df[new_node.attr] > div_value])
+        print('当前节点的划分值是： ', div_value)
+        new_node.attr_down['<={}?'.format(div_value)] = TreeGenerate(df[df[new_node.attr] <= div_value].reset_index(drop=True))
+        new_node.attr_down['>{}?'.format(div_value)] = TreeGenerate(df[df[new_node.attr] > div_value].reset_index(drop=True))
     return new_node
 
 # Ent = calShannonEnt(df)
