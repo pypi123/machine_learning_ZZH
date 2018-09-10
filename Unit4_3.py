@@ -158,32 +158,29 @@ def TreeToGraph(i, father_node, g):
     else:
         node_label = 'Node: %d\n好瓜: %s\n属性: %s' % (i, father_node.label, father_node.attr)
     father_node_name = i
-    node_graph_obj = graphviz.Node(father_node_name, label=node_label, fontmat='SimHei')  # 创建graphviz.Node对象
+    node_graph_obj = graphviz.Node(father_node_name, label=node_label, fontname='SimHei')  # 创建graphviz.Node对象
     g.add_node(node_graph_obj)  # 将创建的graphviz节点对象添加到graphviz点图Dot对象
     if father_node.attr != None:
         for value in father_node.attr_down:
             child_node = father_node.attr_down[value]
             i, child_node_name = TreeToGraph(i+1, child_node, g)
-            g_edge = graphviz.Edge(father_node_name, child_node_name, label=value, fontmat='SimHei')
+            g_edge = graphviz.Edge(father_node_name, child_node_name, label=value, fontname='SimHei')
 
             # 创建edge对象，将父节点与子节点进行连接
             g.add_edge(g_edge)  # 将edge对象加入到点图dot对象中
     return i, father_node_name
 
-
+# 用graphviz实现
 with open('D:\\Desktop\西瓜数据集3.0.csv') as data_file:
     df = pd.read_csv(data_file)
-feature = df.columns[:-1]
 Tree = TreeGenerate(df)
-
-'''用graphviz实现
 from pydotplus import graphviz
 g = graphviz.Dot() # 创建一个Dot图对象
 TreeToGraph(0, Tree, g)
 g2 = graphviz.graph_from_dot_data(g.to_string()) # 将Dot对象输出为字符串g.to_string()
                                                  # 并通过graphviz解码
 g2.write_png('D:\\Desktop\ID3test.png')
-'''
+
 
 '''
 这里在摸索框架
@@ -215,7 +212,7 @@ def graph(father_node,i):
 '''
 
 
-'''用Digraph包实现'''
+'''用Digraph包实现
 
 def TreeToGraph(i, father_node, dot):
     """
@@ -232,9 +229,8 @@ def TreeToGraph(i, father_node, dot):
         node_label = 'Node: %d\n好瓜: %s'% (i, father_node.label)
     else:
         node_label = 'Node: %d\n好瓜: %s\n属性: %s' % (i, father_node.label, father_node.attr)
-    father_node_name = str(i)
-        # node_name = str(i)  # 用数字记录节点对象的名字
-        # dot = Digraph()  # 创建Digraph对象
+    father_node_name = str(i)  # dot对象添加node时，node的名字需要用字符串或者字节表示，
+                               # 想不通为什么
     dot.node(name=father_node_name, label=node_label, fontname='SimHei', shape='rect')  # 创建节点
     if father_node.attr != None:
         for value in father_node.attr_down:
@@ -244,6 +240,10 @@ def TreeToGraph(i, father_node, dot):
 
     return i, father_node_name
 
+with open('D:\\Desktop\西瓜数据集3.0.csv') as data_file:
+    df = pd.read_csv(data_file)
+feature = df.columns[:-1]
+Tree = TreeGenerate(df)
 
 import os
 from graphviz import Digraph
@@ -251,9 +251,7 @@ dot = Digraph(comment='test')
 TreeToGraph(0, Tree, dot)
 os.environ["PATH"] += os.pathsep + 'D:/Program Files (x86)/Graphviz2.38/bin/'
 dot.render('./decession_tree_test.gv', view=True)
-
-
-
+'''
 
 
 
