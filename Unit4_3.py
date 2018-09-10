@@ -1,9 +1,4 @@
 import pandas as pd
-with open('D:\\Desktop\西瓜数据集3.0.csv') as data_file:
-    df = pd.read_csv(data_file)
-# print(df)
-feature = df.columns[:-1]
-# print(feature)
 
 def calShannonEnt(df):
     """
@@ -116,7 +111,7 @@ def TreeGenerate(df):
 决策树生成的框架
     :param df:DataFrame数据
     """
-    print(df)
+    # print(df)
     new_node = Node(None, None, {})
     label_counts = {}
     for label in df[df.columns[-1]]:
@@ -124,38 +119,142 @@ def TreeGenerate(df):
             label_counts[label] = 1
         else:
             label_counts[label] += 1
-    print('当前处理数据的标签统计： ', label_counts)
+    # print('当前处理数据的标签统计： ', label_counts)
     if len(label_counts) == 1:   # or len(df) == 0 or len(df.columns)-1 == 0:
-    # groups = df.groupby(df[df.columns[-1]])
-    # label_num = 0  # 将此节点中属于某类的样本数量初始化为0
-    # if len(groups) > 1:
-    #     for label, group in groups:
-    #         if len(group) > label_num:
-    #             label_num = len(group)
-    #             new_node.label = label
-    # else:
-    #     new_node.label = df[df.columns[-1]][0]
         new_node.label = df.loc[0,df.columns[-1]]
-        print('当前节点的标签是：', new_node.label)
+        new_node.attr = None
+        new_node.attr_down = None
+        # print('当前节点的标签是：', new_node.label)
         return new_node
     else:
         new_node.label = max(label_counts, key=label_counts.get)
-        print('当前节点的标签是：', new_node.label)
+        # print('当前节点的标签是：', new_node.label)
     new_node.attr, div_value = chose_feature(df)
-    print('当前节点的属性是： ', new_node.attr)
+    # print('当前节点的属性是： ', new_node.attr)
     if div_value == None:
         group_by_attr = df.groupby(new_node.attr)
         for value, group in group_by_attr:
             new_node.attr_down[value] = TreeGenerate(group.drop(columns=new_node.attr).reset_index(drop=True))
     else:
-        print('当前节点的划分值是： ', div_value)
+        # print('当前节点的划分值是： ', div_value)
         new_node.attr_down['<={}?'.format(div_value)] = TreeGenerate(df[df[new_node.attr] <= div_value].reset_index(drop=True))
         new_node.attr_down['>{}?'.format(div_value)] = TreeGenerate(df[df[new_node.attr] > div_value].reset_index(drop=True))
     return new_node
 
-# Ent = calShannonEnt(df)
-# feature = chose_feature(df)
-# print(Ent)
-# print(feature)
+'''决策树可视化实现'''
+def TreeToGraph(i, father_node, g):
+    """
+    给定起始节点的名字i（用数字记录节点名）、节点、和 标签名字
+    用i+1，和子节点及标签名作为递归输入
+    返回的是i和子节点的名称
+    将所有的节点遍历完成后返回
+    :param i: 为了避免迭代时子节点重新从零开始计，这里传入参数i用来累加迭代
+    :param node:根节点
+    :param df:根节点的数据
+    """
+    from pydotplus import graphviz
+    if father_node.attr == None:
+        node_label = 'Node: %d\n好瓜: %s'% (i, father_node.label)
+    else:
+        node_label = 'Node: %d\n好瓜: %s\n属性: %s' % (i, father_node.label, father_node.attr)
+    father_node_name = i
+    node_graph_obj = graphviz.Node(father_node_name, label=node_label, fontmat='SimHei')  # 创建graphviz.Node对象
+    g.add_node(node_graph_obj)  # 将创建的graphviz节点对象添加到graphviz点图Dot对象
+    if father_node.attr != None:
+        for value in father_node.attr_down:
+            child_node = father_node.attr_down[value]
+            i, child_node_name = TreeToGraph(i+1, child_node, g)
+            g_edge = graphviz.Edge(father_node_name, child_node_name, label=value, fontmat='SimHei')
+
+            # 创建edge对象，将父节点与子节点进行连接
+            g.add_edge(g_edge)  # 将edge对象加入到点图dot对象中
+    return i, father_node_name
+
+
+with open('D:\\Desktop\西瓜数据集3.0.csv') as data_file:
+    df = pd.read_csv(data_file)
+feature = df.columns[:-1]
 Tree = TreeGenerate(df)
-print(Tree.attr_down)
+
+'''用graphviz实现
+from pydotplus import graphviz
+g = graphviz.Dot() # 创建一个Dot图对象
+TreeToGraph(0, Tree, g)
+g2 = graphviz.graph_from_dot_data(g.to_string()) # 将Dot对象输出为字符串g.to_string()
+                                                 # 并通过graphviz解码
+g2.write_png('D:\\Desktop\ID3test.png')
+'''
+
+'''
+这里在摸索框架
+def graph(father_node,i):
+    father_node_name = i
+    if father_node.attr == None:
+        print('页节点: %d\n类别: %s' % (i, father_node.label))
+        return i
+    else:
+        print('节点: %d\n类别: %s' % (i, father_node.label))
+        for value in father_node.attr_down:
+            child_node = father_node.attr_down[value]
+            i = graph(child_node, i+1)
+
+# for value in Tree.attr_down:
+#     node2 = Tree.attr_down[value]
+#     if node2.attr == None:
+#         print('父节点：%s -> 页节点：%s' % (Tree.attr, value))
+#     else:
+#         print('父节点：%s -> 子节点：%s' % (Tree.attr, value))
+#         print('最佳分割属性：', node2.attr)
+#         for value in node2.attr_down:
+#             node3 = node2.attr_down[value]
+#             if node3.attr == None:
+#                 print('父节点：%s -> 页节点：%s' % (node2.attr, value))
+#             else:
+#                 print('父节点：%s -> 子节点：%s' % (node2.attr, value))
+#                 print('最佳分割属性：', node3.attr)
+'''
+
+
+'''用Digraph包实现'''
+
+def TreeToGraph(i, father_node, dot):
+    """
+    给定起始节点的名字i（用数字记录节点名）、节点、和 标签名字
+    用i+1，和子节点及标签名作为递归输入
+    返回的是i和子节点的名称
+    将所有的节点遍历完成后返回
+    :param i: 为了避免迭代时子节点重新从零开始计，这里传入参数i用来累加迭代
+    :param node:根节点
+    :param df:根节点的数据
+    """
+    from graphviz import Digraph
+    if father_node.attr == None:
+        node_label = 'Node: %d\n好瓜: %s'% (i, father_node.label)
+    else:
+        node_label = 'Node: %d\n好瓜: %s\n属性: %s' % (i, father_node.label, father_node.attr)
+    father_node_name = str(i)
+        # node_name = str(i)  # 用数字记录节点对象的名字
+        # dot = Digraph()  # 创建Digraph对象
+    dot.node(name=father_node_name, label=node_label, fontname='SimHei', shape='rect')  # 创建节点
+    if father_node.attr != None:
+        for value in father_node.attr_down:
+            child_node = father_node.attr_down[value]
+            i, child_node_name = TreeToGraph(i+1, child_node, dot)
+            dot.edge(tail_name=father_node_name, head_name=child_node_name, label=value, fontname='Simhei')
+
+    return i, father_node_name
+
+
+import os
+from graphviz import Digraph
+dot = Digraph(comment='test')
+TreeToGraph(0, Tree, dot)
+os.environ["PATH"] += os.pathsep + 'D:/Program Files (x86)/Graphviz2.38/bin/'
+dot.render('./decession_tree_test.gv', view=True)
+
+
+
+
+
+
+
