@@ -137,8 +137,13 @@ def TreeGenerate(df):
             new_node.attr_down[value] = TreeGenerate(group.drop(columns=new_node.attr).reset_index(drop=True))
     else:
         # print('当前节点的划分值是： ', div_value)
-        new_node.attr_down['<={}?'.format(div_value)] = TreeGenerate(df[df[new_node.attr] <= div_value].reset_index(drop=True))
-        new_node.attr_down['>{}?'.format(div_value)] = TreeGenerate(df[df[new_node.attr] > div_value].reset_index(drop=True))
+        # new_node.attr_down['<={}?'.format(div_value)] = TreeGenerate(df[df[new_node.attr] <= div_value].reset_index(drop=True))
+        # new_node.attr_down['>{}?'.format(div_value)] = TreeGenerate(df[df[new_node.attr] > div_value].reset_index(drop=True))
+        new_node.attr_down['<=%.3f'% div_value] = TreeGenerate(
+            df[df[new_node.attr] <= div_value].reset_index(drop=True))
+        new_node.attr_down['>%.3f'% div_value] = TreeGenerate(
+            df[df[new_node.attr] > div_value].reset_index(drop=True))
+
     return new_node
 
 '''决策树可视化实现'''
@@ -252,7 +257,53 @@ TreeToGraph(0, Tree, dot)
 os.environ["PATH"] += os.pathsep + 'D:/Program Files (x86)/Graphviz2.38/bin/'
 dot.render('./decession_tree_test.gv', view=True)
 '''
+def predict(Tree, df_sample):
+    """
+预测单个样本的标签
+    :param Tree:
+    :param df_sample: 单个样本
+    :return:
+    """
+    import re
+    if Tree.attr == None:
+        # print(Tree.label)
+        return Tree.label
+    value = df_sample[Tree.attr]
+    if type(value) == str:
+        new_node = Tree.attr_down[value]
+        label = predict(new_node, df_sample)
+    else:
+        for key in Tree.attr_down:
+            div_num = float(re.findall(r'\d+\.?\d+', key)[0])
+            break
+        if value <= div_num:
+            key = '<%.3f' % div_num
+            new_node = Tree.attr_down[key]
+            label = predict(new_node, df_sample)
+        else:
+            key = '>%.3f' % div_num
+            new_node = Tree.attr_down[key]
+            label = predict(new_node, df_sample)
+    return label
+
+def predict_accuracy(Tree, df_test):
+
+    accuracy_num = 0
+    for index in df_test.index:
+        test_sample = df_test.loc[index, :]  # 转换为Series对象
+        label = predict(Tree, test_sample)
+        if label == test_sample[test_sample.index[-1]]:
+            accuracy_num += 1
+    accuracy = accuracy_num/len(df_test)
+    return accuracy
 
 
-
-
+df_test_set = df.loc[1:5, :]
+# index = df_sample.index[-1]
+# index1 = df.index
+# print(df_sample[index])
+# print(index1)
+# a = predict(Tree, df_sample)
+# print(a)
+acc = predict_accuracy(Tree, df_test_set)
+print(acc)
